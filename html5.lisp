@@ -39,7 +39,7 @@ case-insensitively.
 It is suggested that newlines be inserted after the DOCTYPE [...]."
   (declare (ignore attributes contents))
   `(<> :unescaped 
-     "<!DOCTYPE html>" (string #\Newline))))
+     "<!DOCTYPE html>" (string #\Newline)))
 
 (defun sexpml-form-with-end-tag (name attributes contents)
   `(<> '(,name ,@attributes)
