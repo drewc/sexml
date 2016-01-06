@@ -5,7 +5,7 @@
 	   #:*sexpml-output*
 	   #:*sexpml-indent*
 	   #:sexpml-form
-	   #:sexmpl-attributes-bind))
+	   #:sexpml-attributes-bind))
 (in-package :sexpml)
 
 (defparameter *sexpml-output* *standard-output*
@@ -20,6 +20,21 @@
     "Either :HTML or :XML")
       
 (defvar *sexpml-forms*)
+
+(defmacro sexpml-attributes-bind ((&rest bindings) attributes &body body)
+  (let* ((plist (gensym))
+	 (atts (gensym)))
+    `(let ((,atts ,attributes)
+	   ,plist)
+       (loop :while ,atts
+	  :do (let* ((key (pop ,atts))
+		     (key? (keywordp key))
+		     (val (when key? (pop ,atts))))
+		(when key?
+		  (push key ,plist)
+		  (push val ,plist))))
+       (destructuring-bind (&key ,@bindings) (nreverse ,plist)
+	 ,@body))))
 
 (defun sexpml-constant-p (thing)
   (or (stringp thing)

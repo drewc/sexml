@@ -12,7 +12,7 @@ There are many different ways "to create (X)HTML from
 S-expressions. If you've seen one, you've seen them
 all... :)"[fn:cwho]. What makes up ~SEXPML~ is as follows.
 
-** Simple Syntax
+** Symbolic Expression : Simple Syntax
 
 When incorporating markup in Common Lisp code, it is nice to have
 syntax that matches well with CL code. 
@@ -43,7 +43,7 @@ To start with, the ~SEXPML:<>~ macro can do a lot on its own.
         (<> `(,tag :is "one of the" :other "ways")))))
 #+END_SRC
 *=>*
-#+BEGIN_SRC lisp
+#+BEGIN_SRC html
 <this-is-an-element with="attribute" after attribute
   >Text and Characters just after &lt;&gt; in the source code are inserted, escapsed.&lt;
 &gt;<QuoteWorks
@@ -61,10 +61,40 @@ To start with, the ~SEXPML:<>~ macro can do a lot on its own.
 >
 #+END_SRC
 
+** eXtensible Programmable
 
+#+BEGIN_SRC lisp :results value code
+  (princ (with-output-to-string (sexpml:*sexpml-output*)
+    (<> '(html5:html :doctype t)
+      (<> 'html5:head (<> 'html5:title "This is a title!"))
+      (<> 'html5:body
+        (<> 'html5:div
+          (<> "This is simple text inside the <body> tag"))
+        (<> 'html5:script
+          "Things are different for a <\\script> tag")))))
+#+END_SRC
+*=>*
+#+BEGIN_SRC html
+<!DOCTYPE html>
+<html
+  ><head
+    ><title
+        >This is a title!</title
+      ></head
+  ><body
+    ><div
+      >This is simple text inside the &lt;body&gt; tag</div
+    ><script
+      >Things are different for a <\script> tag</script
+    ></body
+  ></html
+>
+#+END_SRC
+
+   
 * Footnotes
 
-[fn:cwho] \ http://www.cliki.net/cl-who
+[fn:cwho]  http://www.cliki.net/cl-who
 
 
 
