@@ -7,12 +7,14 @@
   (:export #:doctype 
 	   #:html
            #:head
+           #:link
            #:title
 	   #:body
 	   #:script
 	   #:div
 	   #:nav
-	   #:iframe)
+	   #:iframe
+           #:h1)
   
   (:documentation "HTML5 tags for SEXPML 
  - Symbolic Expression eXtensible Programmable Markup Language -
@@ -40,12 +42,13 @@ It is suggested that newlines be inserted after the DOCTYPE [...]."
   (declare (ignore attributes contents))
   `(<> :unescaped 
      "<!DOCTYPE html>" (string #\Newline)))
-
+ 
 (defun sexpml-form-with-end-tag (name attributes contents)
-  `(<> '(,name ,@attributes)
-     ,@(if contents 
-	   contents
-	   (list ""))))
+  (sexpml:sexpml-form name :attributes attributes
+                      :contents 
+                      (if contents 
+                          contents
+                          (list ""))))
 
 (defmethod sexpml-form ((tag (eql 'html))
 		     &key attributes contents)
@@ -204,3 +207,23 @@ DOM interface:
 Uses HTMLElement."
   (sexpml-form-with-end-tag "nav" attributes contents))
 
+(defmacro deftag-without-indent (name)
+  
+  `(defmethod sexpml-form ((tag (eql ',name))
+                           &key attributes contents)
+     (let ((sexpml:*sexpml-indent* nil))
+       (sexpml-form-with-end-tag
+        ,(string-downcase (string name))
+        attributes contents))))
+
+(deftag-without-indent h1)
+(deftag-without-indent h2)
+(deftag-without-indent h3)
+(deftag-without-indent h4)
+(deftag-without-indent h5)
+(deftag-without-indent h6)
+
+
+(defmethod sexpml-form ((tag (eql 'link))
+                        &key &allow-other-keys)
+  (call-next-method))
