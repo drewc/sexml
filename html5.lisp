@@ -6,20 +6,76 @@
 		#:sexpml-form)
   (:export #:doctype 
 	   #:html
+	   #:&
+	   ;; Document metadata
            #:head
            #:link
            #:title
 	   #:body
 	   #:script
-	   #:div
 	   #:nav
+	   #:button
+	   #:i
+	  
+	   ;; Grouping content
+	   #:p #:hr #:pre #:blockquote
+	   #:ol #:ul #:li #:dl #:dt #:dd
+	   #:figure #:figcaption #:main #:div
+
+	   ;; Heading content 
+           #:h1 #:h2 #:h3 #:h4 #:h5 #:h6
+
+	   ;; Phrasing content
+
+	   #:a
+
+	   ;; abbr area (if it is a descendant of a map element) audio b bdi bdo br button canvas cite code data datalist del dfn em embed i
+
 	   #:iframe
-           #:h1)
+
+	   ;img input ins kbd keygen label map mark math meter noscript object output picture progress q ruby s samp script select
+	   
+	   #:small
+	   #:span #:strong sub sup svg template textarea time u var video wbr text
+
+	   ;; * Tabular data
+
+	   #:table
+	   #:caption
+	   #:thead
+	   #:tbody
+	   #:tr
+	   #:th
+	   #:td)
   
   (:documentation "HTML5 tags for SEXPML 
  - Symbolic Expression eXtensible Programmable Markup Language -
  - http://www.w3.org/TR/html51/"))
 (in-package :sexpml/html5)
+
+;; * Start
+
+
+(defun sexpml-form-with-end-tag (name attributes contents)
+  (sexpml:sexpml-form name :attributes attributes
+                      :contents 
+                      (if contents 
+                          contents
+                          (list ""))))
+
+(defmacro deftag (name &key (indent t) (end-tag-required t))
+  (let ((string (string-downcase (string name))))
+    `(defmethod sexpml-form ((tag (eql ',name))
+			     &key attributes contents)
+       (let (,@(unless indent
+		 '((sexpml:*sexpml-indent* nil))))
+	 ,(if end-tag-required
+	      `(sexpml-form-with-end-tag
+		,string attributes contents)
+	      `(sexpml-form ,string :attributes attributes :contents contents))))))
+  
+
+;; * Doctype
 
 (defmethod sexpml-form ((tag (eql 'doctype))
 		     &key attributes contents)
@@ -43,12 +99,7 @@ It is suggested that newlines be inserted after the DOCTYPE [...]."
   `(<> :unescaped 
      "<!DOCTYPE html>" (string #\Newline)))
  
-(defun sexpml-form-with-end-tag (name attributes contents)
-  (sexpml:sexpml-form name :attributes attributes
-                      :contents 
-                      (if contents 
-                          contents
-                          (list ""))))
+;; * HTML element
 
 (defmethod sexpml-form ((tag (eql 'html))
 		     &key attributes contents)
@@ -63,11 +114,16 @@ It is suggested that newlines be inserted after the DOCTYPE [...]."
 		    :attrbutes attributes
 		    :contents contents)))))
 
+;; * Document metadata
+
+;; ** The head element
 (defmethod sexpml-form ((tag (eql 'head))
 		     &key attributes contents)
   (sexpml-form "head" 
 	    :attributes attributes
 	    :contents contents))
+
+;; ** The title element
 
 (defmethod sexpml-form ((tag (eql 'title))
 		     &key attributes contents)
@@ -81,6 +137,9 @@ Neither tag is omissible."
    (if (every 'stringp contents)
        (list (sexpml-form :text :contents contents))
        contents)))
+;; * Sections
+
+;; ** The body element
 
 (defmethod sexpml-form ((tag (eql 'body))
 		     &key attributes contents)
@@ -89,25 +148,90 @@ Neither tag is omissible."
 	    :attributes attributes
 	    :contents contents))
 
-(defmethod sexpml-form ((tag (eql 'div))
-		     &key attributes contents)
-  "=> /form/
+;; ** The nav element
 
-*Description:*
+(deftag nav)
 
-The div element has no special meaning at all. It represents its
-children. It can be used with the class, lang, and title attributes to
-mark up semantics common to a group of consecutive elements. 
- -- http://www.w3.org/TR/html51/grouping-content.html#the-div-element
 
-*Tag omission in text/html:*
+;; ** Heading content : The h1, h2, h3, h4, h5, and h6 elements
 
-Neither tag is omissible.
-"
+(deftag h1 :indent nil)
+(deftag h2 :indent nil)
+(deftag h3 :indent nil)
+(deftag h4 :indent nil)
+(deftag h5 :indent nil)
+(deftag h6 :indent nil)
 
-  (sexpml-form "div" 
-	    :attributes attributes
-	    :contents (or contents (list ""))))
+;; *  Phrasing content
+
+;; Phrasing content is the text of the document, as well as elements
+;; that mark up that text at the intra-paragraph level. Runs of
+;; phrasing content form paragraphs.
+
+;;  a abbr area (if it is a descendant of a map element) audio b bdi
+;; bdo br button canvas cite code data datalist del dfn em embed i
+;; iframe img input ins kbd keygen label map mark math meter noscript
+;; object output picture progress q ruby s samp script select small
+;; span strong sub sup svg template textarea time u var video wbr text
+
+(deftag a :indent nil)
+(deftag small :indent nil)
+(deftag strong :indent nil)
+
+
+;; * Grouping content
+;; https://www.w3.org/TR/html51/single-page.html#grouping-content
+
+;; ** The p element
+
+(deftag p)
+
+;; ** The hr element
+
+
+(deftag hr)
+;; 4.4.3The pre element
+
+(deftag pre)
+;; 4.4.4The blockquote element
+
+(deftag blockquote)
+;; 4.4.5The ol element
+;; 4.4.6The ul element
+;; 4.4.7The li element
+;; 4.4.8The dl element
+;; 4.4.9The dt element
+;; 4.4.10The dd element
+;; 4.4.11The figure element
+;; 4.4.12The figcaption element
+;; 4.4.13The main element
+;; 4.4.14The div element
+;; ** The ul element
+
+(deftag ul)
+
+;; ** The li element
+
+(deftag li)
+
+;; ** The div element
+
+(deftag div)
+
+;; * Tabular data
+
+(deftag table)
+(deftag caption)
+(deftag thead)
+(deftag tbody)
+(deftag tr)
+(deftag th)
+(deftag td)
+
+
+;; * &rest
+
+
  
 
 (defmethod sexpml-form ((tag (eql 'iframe))
@@ -177,51 +301,9 @@ http://www.w3.org/TR/html51/scripting-1.html#the-script-element
    :contents contents)))
 
 
-(defmethod sexpml-form ((tag (eql 'nav))
-		     &key attributes contents)
-  "Categories:
-Flow content.
-Sectioning content.
-Palpable content.
 
-Contexts in which this element can be used:
-Where flow content is expected.
 
-Content model:
-Flow content, but with no main element descendants.
 
-Tag omission in text/html:
-Neither tag is omissible.
-
-Content attributes:
-Global attributes
-
-Allowed ARIA role attribute values:
-navigation role (default - do not set) or presentation.
-
-Allowed ARIA State and Property Attributes:
-Global aria-* attributes
-Any aria-* attributes applicable to the allowed roles.
-
-DOM interface:
-Uses HTMLElement."
-  (sexpml-form-with-end-tag "nav" attributes contents))
-
-(defmacro deftag-without-indent (name)
-  
-  `(defmethod sexpml-form ((tag (eql ',name))
-                           &key attributes contents)
-     (let ((sexpml:*sexpml-indent* nil))
-       (sexpml-form-with-end-tag
-        ,(string-downcase (string name))
-        attributes contents))))
-
-(deftag-without-indent h1)
-(deftag-without-indent h2)
-(deftag-without-indent h3)
-(deftag-without-indent h4)
-(deftag-without-indent h5)
-(deftag-without-indent h6)
 
 
 (defmethod sexpml-form ((tag (eql 'link))

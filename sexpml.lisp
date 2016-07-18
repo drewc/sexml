@@ -5,7 +5,9 @@
 	   #:*sexpml-output*
 	   #:*sexpml-indent*
 	   #:sexpml-form
-	   #:sexpml-attributes-bind))
+	   #:sexpml-attributes-bind
+	   #:sexpml-attributes-plist
+	   #:*sexpml-attributes*))
 (in-package :sexpml)
 
 (defparameter *sexpml-output* *standard-output*
@@ -21,11 +23,25 @@
       
 (defvar *sexpml-forms*)
 
+(defvar *sexpml-attributes* (list))
+
+(defun sexpml-attributes-plist (attributes)
+  (let (plist)
+    (loop :while attributes
+       :do (let* ((key (pop attributes))
+		  (key? (keywordp key))
+		  (val (when key? (pop attributes))))
+	     (when key?
+	       (push key plist)
+	       (push val plist)))
+       :finally (return plist))))
+  
 (defmacro sexpml-attributes-bind ((&rest bindings) attributes &body body)
   (let* ((plist (gensym))
-	 (atts (gensym)))
+	 (atts '*sexpml-attributes*))
     `(let ((,atts ,attributes)
 	   ,plist)
+;       (break "~A" ,atts)
        (loop :while ,atts
 	  :do (let* ((key (pop ,atts))
 		     (key? (keywordp key))
@@ -387,7 +403,7 @@ For an uppercase tag, use a string"
 
 
 
-                                    
+
 (defun list-sexpml-tag-form (list &optional contents)
   (if (eq (first list) 'quote)
       (if (not (listp (second list)))
@@ -406,7 +422,6 @@ For an uppercase tag, use a string"
                        :contents contents))
       (let* ((tag (gensym "sexpml-tag-"))
              (name (gensym "sexpml-tag-name"))
-             (attributes (gensym "sexpml-attributes"))
              ;; 
              (compile-time-name (find-compile-time-name list))
              (cname (gensym "sexpml-compile-time-name")))
@@ -417,13 +432,12 @@ For an uppercase tag, use a string"
         `(let* ((,tag ,list)
                 (,name (first ,tag))
                 #+(or)(,name )
-                (,attributes (rest ,tag))
+                (*sexpml-attributes* (rest ,tag))
                 (,cname ',compile-time-name))
-
            (if (eq ,cname ,name)
                ,(sexpml-form compile-time-name 
                              :attributes `((sexpml-attributes-to-string 
-                                            ,cname ,attributes))
+                                            ,cname *sexpml-attributes*))
                              :contents contents)
                ,(string-sexpml-tag-form 
                  `(etypecase ,name
@@ -431,7 +445,7 @@ For an uppercase tag, use a string"
                                     (string-downcase ,name))
                                    (t (symbol-name ,name))))
                      (string ,name))
-                 `((sexpml-attributes-to-string ,name ,attributes))
+                 `((sexpml-attributes-to-string ,name *sexpml-attributes*))
                  contents))))))
 
 (defmethod sexpml-form ((name list)
