@@ -13,6 +13,7 @@
            #:title
 	   #:body
 	   #:script
+	   #:style
 	   #:nav
 	   #:button
 	   #:i
@@ -36,9 +37,10 @@
 	   ;img input ins kbd keygen label map mark math meter noscript object output picture progress q ruby s samp script select
 	   
 	   #:small
-	   #:span #:strong sub sup svg template textarea time u var video wbr text
+	   #:span #:strong
+	   ;; sub sup svg template textarea time u var video wbr text
 
-	   ;; * Tabular data
+	   ;; - Tabular data
 
 	   #:table
 	   #:caption
@@ -46,8 +48,23 @@
 	   #:tbody
 	   #:tr
 	   #:th
-	   #:td)
-  
+	   #:td
+
+	   ;; - FORMS
+
+	   #:form
+	   #:input
+	   #:button
+	   #:select
+	   #:textarea
+	   #:fieldset
+	   #:output	
+	   #:object	
+	   #:meter	
+	   #:progress
+	   #:label
+	   #:img)
+	   
   (:documentation "HTML5 tags for SEXPML 
  - Symbolic Expression eXtensible Programmable Markup Language -
  - http://www.w3.org/TR/html51/"))
@@ -162,6 +179,17 @@ Neither tag is omissible."
 (deftag h5 :indent nil)
 (deftag h6 :indent nil)
 
+;; * 4.7. Embedded content
+
+;; ** 4.7.5. The img element
+
+;; - Tag omission in text/html ::  No end tag.
+
+;; https://www.w3.org/TR/html51/single-page.html#the-img-element
+
+(deftag img :indent nil :end-tag-required nil)
+
+
 ;; *  Phrasing content
 
 ;; Phrasing content is the text of the document, as well as elements
@@ -177,6 +205,8 @@ Neither tag is omissible."
 (deftag a :indent nil)
 (deftag small :indent nil)
 (deftag strong :indent nil)
+
+
 
 
 ;; * Grouping content
@@ -227,6 +257,37 @@ Neither tag is omissible."
 (deftag tr)
 (deftag th)
 (deftag td)
+
+
+;; * Forms
+
+;; "A form is a component of a Web page that has form controls, such
+;; as text fields, buttons, checkboxes, range controls, or color
+;; pickers. A user can interact with such a form, providing data that
+;; can then be sent to the server for further processing (e.g.,
+;; returning the results of a search or calculation). No client-side
+;; scripting is needed in many cases, though an API is available so
+;; that scripts can augment the user experience or use forms for
+;; purposes other than submitting data to a server."
+
+;;  -- https://www.w3.org/TR/html51/single-page.html#sec-forms
+
+(deftag form)
+
+(deftag input :indent nil :end-tag-required nil)
+
+(deftag button :indent t :end-tag-required t)
+
+(deftag select)
+(deftag textarea :end-tag-required t :indent t)
+(deftag fieldset)
+(deftag output)
+(deftag object)
+(deftag meter)
+(deftag progress)
+(deftag label)
+
+
 
 
 ;; * &rest
@@ -300,10 +361,22 @@ http://www.w3.org/TR/html51/scripting-1.html#the-script-element
    :attributes attributes
    :contents contents)))
 
+(defmethod sexpml-form ((tag (eql 'style))
+		     &key attributes contents)
 
+  (let ((contents 
+	 (if contents
+	     (list (sexpml-form 
+		    :unescaped
+		    :contents contents))
+	     ;; *Tag omission in text/html:*
+	     ;; Neither tag is omissible
+	     (list ""))))
 
-
-
+  (sexpml-form 
+   "style"
+   :attributes attributes
+   :contents contents)))
 
 
 (defmethod sexpml-form ((tag (eql 'link))
