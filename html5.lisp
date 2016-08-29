@@ -21,7 +21,7 @@
 	   ;; Grouping content
 	   #:p #:hr #:pre #:blockquote
 	   #:ol #:ul #:li #:dl #:dt #:dd
-	   #:figure #:figcaption #:main #:div
+	   #:figure #:figcaption #:main #:div #:code
 
 	   ;; Heading content 
            #:h1 #:h2 #:h3 #:h4 #:h5 #:h6
