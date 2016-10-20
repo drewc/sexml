@@ -3,12 +3,39 @@
   (:documentation "SEXPML - Symbolic Exression eXtensible Programmable Markup Language")
   (:export #:<> 
 	   #:*sexpml-output*
+	   #:define-tag
+	   #:tag-attributes
+	   #:tag-contents
 	   #:*sexpml-indent*
 	   #:sexpml-form
 	   #:sexpml-attributes-bind
 	   #:sexpml-attributes-plist
 	   #:*sexpml-attributes*))
 (in-package :sexpml)
+
+(defgeneric sexpml-form (name 
+                         &key 
+                           attributes
+                           contents
+                           &allow-other-keys)
+  (:documentation "form n. 1. any object meant to be evaluated.
+This function produces a form which, when evaluated, will generate some corresponding markup."))
+
+(defmacro define-tag (name &body contents)
+  `(etypecase ',name
+     (symbol
+      (setf (get ',name '<>) t)
+      (defmethod sexpml-form ((tag (eql ',name))
+			      &key attributes contents)
+	(flet ((tag-attributes () attributes)
+	       (tag-contents () contents))
+	  ,@contents)))))
+      
+  
+
+
+(defgeneric sexpml-indent (name &key &allow-other-keys)
+  (:method (name &key &allow-other-keys) t))
 
 (defparameter *sexpml-output* *standard-output*
   "Where tags are output.")
@@ -24,6 +51,14 @@
 (defvar *sexpml-forms*)
 
 (defvar *sexpml-attributes* (list))
+
+(defun sexpml-constant-p (thing)
+  (or (stringp thing)
+      (characterp thing)
+      (numberp thing)
+      (keywordp thing)))
+
+
 
 (defun sexpml-attributes-plist (attributes)
   (let (plist)
@@ -52,16 +87,14 @@
        (destructuring-bind (&key ,@bindings) (nreverse ,plist)
 	 ,@body))))
 
-(defun sexpml-constant-p (thing)
-  (or (stringp thing)
-      (characterp thing)
-      (numberp thing)
-      (keywordp thing)))
-
 (defun emit-princ (&rest items)
   "Emit to the current yaclml-code a form which will, at runtime,
-   princ ITEM. If (sexpml-constant-p ITEM) is true the princ will
-   be done at compile time."
+   princ ITEM. 
+
+   If (sexpml-constant-p ITEM) is true the princ will
+   be done at compile time.
+
+   If it is a cons at run time, is is a list of attributes."
   (dolist (item items *sexpml-forms*)
     (push (cond
             ((stringp item)
@@ -70,7 +103,14 @@
              (string-downcase (princ-to-string item)))
             ((sexpml-constant-p item)
              (princ-to-string item))
-            (t `(princ ,item *sexpml-output*)))
+            (t
+	     (let ((ritem (gensym)))
+	       `(let ((,ritem ,item))
+		  (typecase ,ritem 
+		    (cons (princ-attributes ,ritem
+					    :start-with-space t))
+		    (null)
+		    (t (princ ,ritem *sexpml-output*)))))))
           *sexpml-forms*)))
 
 (defun emit-indentation ()
@@ -92,7 +132,7 @@
 
 (defun escape-char (char &key (test *escape-char-p*))
   (declare (optimize speed))
-  "Returns an escaped versi on of the character CHAR if CHAR satisfies
+  "Returns an escaped version of the character CHAR if CHAR satisfies
 the predicate TEST.  Always returns a string."
   (if (funcall test char)
     (case char
@@ -161,14 +201,26 @@ for STRING which'll just be returned."
           (emit-code form))))
 
 (defun attributes-printer (attributes 
-                             &key (emit-princ #'emit-princ)
-                               (emit-attribute-value #'emit-form)
-                               (space nil))
-    (when attributes
+			   &key (start-with-space t)
+			     (emit-princ #'emit-princ)
+			     (emit-attribute-value #'emit-form))
+  
+  (when attributes
+    (block attribute
       (let* ((attribute (pop attributes))
-             (value (when (keywordp attribute)
-                      (pop attributes))))
-        (when space (funcall emit-princ #\Space))
+             (value
+	      (cond
+		;; First, make sure it is not nil. if so, return and
+		;; try again
+		((not attribute)
+		 (return-from attribute))
+		;; If it is a keyword, the value is next in line
+		((keywordp attribute)
+		 (pop attributes)))))
+	(when
+	    (and start-with-space
+		 (not (listp attribute)))
+	  (funcall emit-princ #\Space))
         (funcall emit-princ attribute)
         (when value
           (funcall emit-princ #\=)
@@ -176,24 +228,24 @@ for STRING which'll just be returned."
               (funcall emit-princ attribute)
               (progn (funcall emit-princ #\")
                      (funcall emit-attribute-value value)
-                     (funcall emit-princ #\"))))
+                     (funcall emit-princ #\"))))))
         (attributes-printer
-         attributes :space t
+         attributes 
          :emit-princ emit-princ
-         :emit-attribute-value emit-attribute-value))))
+         :emit-attribute-value emit-attribute-value)))
 
 (defun emit-attributes (attributes)
-  (when attributes 
-    (emit-princ " ")
+  (when (and attributes (not (every #'null attributes)))
     (if (and (listp (first attributes))
              (= (length attributes) 1)
              (eq (caar attributes)
                  'sexpml-attributes-to-string))
         (emit-princ (first attributes))
         (progn 
-          (attributes-printer attributes)))))
+          (attributes-printer attributes :emit-attribute-value #'emit-princ)))))
 
-(defun princ-attributes (attributes &key (escape-string #'escape-string))
+(defun princ-attributes (attributes &key (escape-string #'escape-string)
+				      (start-with-space t))
     (attributes-printer 
      attributes
      :emit-princ (lambda (v) 
@@ -201,14 +253,15 @@ for STRING which'll just be returned."
                     (funcall 
                      (if (characterp v) 
                          #'identity
-                         #'escape-string )
+                         escape-string )
                      (if (keywordp v)
                          (string-downcase (princ-to-string v))
                          (princ-to-string v)))
                *sexpml-output*))
      :emit-attribute-value (lambda (value)
                              (princ (funcall escape-string (princ-to-string value))
-                                    *sexpml-output*))))
+                                    *sexpml-output*))
+     :start-with-space start-with-space))
 
 (defun princ-attributes-to-string (attributes &key (escape-string #'escape-string))
   (with-output-to-string (*sexpml-output*)
@@ -274,17 +327,7 @@ with the attributes ATTRIBUTES."
 
 
 
-(defgeneric sexpml-form (name 
-                         &key 
-                           attributes
-                           contents
-                           &allow-other-keys)
-  (:documentation "form n. 1. any object meant to be evaluated.
-This function produces a form which, when evaluated, will generate some corresponding markup."))
 
-
-(defgeneric sexpml-indent (name &key &allow-other-keys)
-  (:method (name &key &allow-other-keys) t))
 
 (defmethod sexpml-form :around (name
                                 &key &allow-other-keys)
@@ -401,32 +444,13 @@ For an uppercase tag, use a string"
                    thing)))
         (%find)))))
 
-
-
-
-(defun list-sexpml-tag-form (list &optional contents)
-  (if (eq (first list) 'quote)
-      (if (not (listp (second list)))
-          ;; Not a list
-          (sexpml-form (second list)
-                       :attributes nil
-                       :contents contents)
-          ;; Is a list
-          (sexpml-form (first (second list))
-                       :attributes (mapcar 
-                                    (lambda (a)
-                                      (if (sexpml-constant-p a)
-                                          a
-                                          (list 'quote a)))
-                                    (rest (second list)))
-                       :contents contents))
-      (let* ((tag (gensym "sexpml-tag-"))
-             (name (gensym "sexpml-tag-name"))
-             ;; 
-             (compile-time-name (find-compile-time-name list))
-             (cname (gensym "sexpml-compile-time-name")))
-               
-        
+(defun run-time-list-sexpml-tag-form (list &optional contents)
+  (let* ((tag (gensym "sexpml-tag-"))
+	 (name (gensym "sexpml-tag-name"))
+	 ;; 
+	 (compile-time-name (find-compile-time-name list))
+	 (cname (gensym "sexpml-compile-time-name")))
+                       
         ;;(break "~A ~A" (first (cdr list)) compile-time-name)
 
         `(let* ((,tag ,list)
@@ -446,7 +470,46 @@ For an uppercase tag, use a string"
                                    (t (symbol-name ,name))))
                      (string ,name))
                  `((sexpml-attributes-to-string ,name *sexpml-attributes*))
-                 contents))))))
+                 contents)))))
+
+
+(defun sexpml-tag-name-p (thing)
+  (typecase thing
+    ((or string keyword) t)
+    (symbol (or (not (fboundp thing))
+		(get thing '<>)))
+    (t nil)))
+
+     
+(defun list-sexpml-tag-form (list &optional contents)
+  (let ((first (first list))) 
+  (cond
+    ;; quoted list
+    ((eq first 'quote)
+      (if (not (listp (second list)))
+          ;; Not a list
+          (sexpml-form (second list)
+                       :attributes nil
+                       :contents contents)
+          ;; Is a list
+          (sexpml-form (first (second list))
+                       :attributes (mapcar 
+                                    (lambda (a)
+                                      (if (sexpml-constant-p a)
+                                          a
+                                          (list 'quote a)))
+                                    (rest (second list)))
+                       :contents contents)))
+    ;; a compile time tag form
+    ;; If the first item is a not a function, it is a tag name.
+    ((sexpml-tag-name-p first)
+     (sexpml-form first :attributes (rest list)
+		  :contents contents))
+
+    ;; Otherwise we are doing something crazy at run time... could
+    ;; even be a backquote!
+    
+    (t (run-time-list-sexpml-tag-form list contents)))))  
 
 (defmethod sexpml-form ((name list)
                         &key attributes
@@ -483,7 +546,7 @@ For an uppercase tag, use a string"
   
   
 
-;; Copyright (c) 2015, Drew Crampsie
+;; Copyright (c) 2015-2016, Drew Crampsie
 ;; Copyright (c) 2003-2009, Dr. Edmund Weitz. 
 ;; Copyright (c) 2002-2005, Edward Marco Baringer
 

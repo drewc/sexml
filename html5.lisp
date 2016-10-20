@@ -33,7 +33,7 @@
 	   ;; abbr area (if it is a descendant of a map element) audio b bdi bdo br button canvas cite code data datalist del dfn em embed i
 
 	   #:iframe
-
+	   
 	   ;img input ins kbd keygen label map mark math meter noscript object output picture progress q ruby s samp script select
 	   
 	   #:small
@@ -53,6 +53,7 @@
 	   ;; - FORMS
 
 	   #:form
+	   #:option
 	   #:input
 	   #:button
 	   #:select
@@ -279,6 +280,7 @@ Neither tag is omissible."
 (deftag button :indent t :end-tag-required t)
 
 (deftag select)
+(deftag option :end-tag-required t)
 (deftag textarea :end-tag-required t :indent t)
 (deftag fieldset)
 (deftag output)
