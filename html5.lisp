@@ -2,7 +2,6 @@
   (:use :cl)
   (:nicknames :html5)
   (:import-from :sexpml
-		#:<>
 		#:sexpml-form)
   (:export #:doctype 
 	   #:html
@@ -70,6 +69,11 @@
  - Symbolic Expression eXtensible Programmable Markup Language -
  - http://www.w3.org/TR/html51/"))
 (in-package :sexpml/html5)
+
+(defmacro <> (form &body contents)
+  (eval-when (:compile-toplevel :load-toplevel :execute)
+    (let ((sexpml:*symbol-home-package* :sexpml/html5))
+      (sexpml:<>-form form contents))))
 
 ;; * Start
 
@@ -247,7 +251,7 @@ Neither tag is omissible."
 
 ;; ** The div element
 
-(deftag div)
+(deftag div :end-tag-required t)
 
 ;; * Tabular data
 

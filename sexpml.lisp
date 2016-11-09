@@ -1,7 +1,9 @@
 (defpackage :sexpml
   (:use :cl)
   (:documentation "SEXPML - Symbolic Exression eXtensible Programmable Markup Language")
-  (:export #:<> 
+  (:export #:<>
+	   #:<>-form
+	   #:*symbol-home-package*
 	   #:*sexpml-output*
 	   #:define-tag
 	   #:tag-attributes
@@ -13,14 +15,12 @@
 	   #:*sexpml-attributes*))
 (in-package :sexpml)
 
-(defgeneric sexpml-form (name 
-                         &key 
-                           attributes
-                           contents
-                           &allow-other-keys)
-  (:documentation "form n. 1. any object meant to be evaluated.
-This function produces a form which, when evaluated, will generate some corresponding markup."))
+(defun symbol-tag-p (symbol)
+  (get symbol '<>))
 
+(defun (setf symbol-tag-p) (value symbol)
+  (setf (get symbol '<>) value))
+  
 (defmacro define-tag (name &body contents)
   `(etypecase ',name
      (symbol
@@ -30,6 +30,16 @@ This function produces a form which, when evaluated, will generate some correspo
 	(flet ((tag-attributes () attributes)
 	       (tag-contents () contents))
 	  ,@contents)))))
+
+(defgeneric sexpml-form (name 
+                         &key 
+                           attributes
+                           contents
+                           &allow-other-keys)
+  (:documentation "form n. 1. any object meant to be evaluated.
+This function produces a form which, when evaluated, will generate some corresponding markup."))
+
+
       
   
 
@@ -408,6 +418,23 @@ with the attributes ATTRIBUTES."
                (and (not (alpha-char-p char))
                     t)))
          (string tag)))
+
+(defvar *symbol-home-package* nil)
+
+(defmethod sexpml-form :around ((name symbol)
+				&key attributes contents)
+  ;; If there is a *SYMBOL-HOME-PACKAGE*, and there are no EQL methods
+  ;; for this symbol, and there is an EQL method for the symbol
+  ;; INTERN'd in the *SYMBOL-HOME-PACKAGE*, we go to that, otherwise
+  ;; continue.
+  (if (not *symbol-home-package*)
+      (call-next-method)
+      (let ((new-symbol (find-symbol (symbol-name name) *symbol-home-package*)))
+	(if (and new-symbol
+		 (not (find-method #'sexpml:sexpml-form '() `((eql ,name)) nil))
+		 (find-method #'sexpml:sexpml-form '() `((eql ,new-symbol)) nil))
+	    (sexpml-form new-symbol :attributes attributes :contents contents)
+	    (call-next-method)))))
 
 (defmethod sexpml-form ((name symbol)
                         &key attributes contents)
