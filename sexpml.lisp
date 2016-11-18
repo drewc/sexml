@@ -345,16 +345,11 @@ with the attributes ATTRIBUTES."
   (let ((*sexpml-indent-level* (if (boundp '*sexpml-indent-level*) 
                                        *sexpml-indent-level*
                                        0)))
-    `(macrolet ((<> (form &body contents)
-                  (let ((*sexpml-indent-level* (if (sexpml-indent form)
-                                                   (+ ,*sexpml-indent-level* 2)
-                                                   ,*sexpml-indent-level*)))
-                    (<>-form form contents))))
-       
-       ,(if (boundp '*sexpml-forms*)
-            (call-next-method)
-            (let ((*sexpml-forms* nil))
-              (call-next-method))))))
+   
+    (if (boundp '*sexpml-forms*)
+	(call-next-method)
+	(let ((*sexpml-forms* nil))
+	  (call-next-method)))))
 
 (defun text-sexpml-form (escape contents)
   (loop :with *sexpml-forms*

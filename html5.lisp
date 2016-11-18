@@ -3,9 +3,11 @@
   (:nicknames :html5)
   (:import-from :sexpml
 		#:sexpml-form)
-  (:export #:doctype 
-	   #:html
+  (:export #:<>
 	   #:&
+	   #:doctype 
+	   #:html
+	   
 	   ;; Document metadata
            #:head
            #:link
@@ -127,6 +129,7 @@ It is suggested that newlines be inserted after the DOCTYPE [...]."
 		     &key attributes contents)
   "http://www.w3.org/TR/html51/semantics.html#the-html-element"
   (sexpml:sexpml-attributes-bind ((doctype nil)) attributes
+;    (break "att: ~A" attributes)
     (let ((dt (gensym)))
       `(progn ,@ (when doctype
 		   `((let ((,dt ,doctype))
